@@ -1,24 +1,28 @@
 # mcstatuskt
 
-Kotlin Multiplatform Library
+Simple Minecraft Server pinger
+Currently only with support for Java Edition servers
 
-### Publish to MavenCentral
+### Usage
 
-1) Registering a Sonatype account as described here: 
-   https://dev.to/kotlin/how-to-build-and-publish-a-kotlin-multiplatform-library-going-public-4a8k
-2) Add developer id, name, email and the project url to
-   `/convention-plugins/src/main/kotlin/convention.publication.gradle.kts`
-3) Add the secrets to `local.properties`:
+```kotlin
+import com.t895.mcstatuskt.JavaServer
+import com.t895.mcstatuskt.Status
 
+fun main() {
+    lateinit var status: Status
+    runBlocking {
+        JavaServer(
+            address = "127.0.0.1",
+            port = 25565,
+            timeoutMs = 15000,
+        ).use {
+            it.connect()
+            status = it.status()
+        }
+    }
+}
 ```
-signing.keyId=...
-signing.password=...
-signing.secretKeyRingFile=...
-ossrhUsername=...
-ossrhPassword=...
-```
-
-4) Run `./gradlew :shared:publishAllPublicationsToSonatypeRepository`
 
 ### Build platform artifacts
 
@@ -37,11 +41,6 @@ ossrhPassword=...
 - Run `./gradlew :shared:linkReleaseFrameworkIosArm64`
 - Output: `/shared/build/bin/iosArm64/releaseFramework/shared.framework`
 
-#### JS file
-
-- Run `./gradlew :shared:jsBrowserProductionWebpack`
-- Output: `/shared/build/dist/js/productionExecutable/shared.js`
-
 #### macOS Framework
 
 - Run `./gradlew :shared:linkReleaseFrameworkMacosArm64`
@@ -51,13 +50,3 @@ ossrhPassword=...
 
 - Run `./gradlew :shared:linkReleaseStaticLinuxX64`
 - Output: `/shared/build/bin/linuxX64/releaseStatic/libshared.a`
-
-#### Windows static library
-
-- Run `./gradlew :shared:linkReleaseStaticMingwX64`
-- Output: `/shared/build/bin/mingwX64/releaseStatic/libshared.a`
-
-#### Wasm binary file
-
-- Run `./gradlew :shared:wasmJsBrowserDistribution`
-- Output: `/shared/build/dist/wasmJs/productionExecutable/shared-wasm-js.wasm`
