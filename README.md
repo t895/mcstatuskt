@@ -1,7 +1,11 @@
 # mcstatuskt
 
-Simple Minecraft Server pinger
+Simple Minecraft Server pinger\
 Currently only with support for Java Edition servers
+
+### Credits
+Original project - https://github.com/py-mine/mcstatus \
+Minecraft Java Edition Server Protocol - https://wiki.vg/Protocol
 
 ### Usage
 
