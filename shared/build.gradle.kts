@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.t895.mcstatuskt"
-version = "0.1.0"
+version = "0.2.0"
 
 kotlin {
     jvmToolchain(17)
@@ -69,7 +69,7 @@ mavenPublishing {
     coordinates(
         groupId = "io.github.t895",
         artifactId = "mcstatuskt",
-        version = "0.1.0"
+        version = "0.2.0"
     )
 
     // Configure POM metadata for the published artifact
