@@ -1,15 +1,12 @@
 package com.t895.mcstatuskt
 
-import io.ktor.utils.io.*
-
 private const val SEGMENT_BITS = 0x7F
 private const val CONTINUE_BIT = 0x80
 
 /**
- * Reads the contents of a Java Minecraft Server's VarInt
- * https://wiki.vg/Protocol#VarInt_and_VarLong
+ * Reads the contents of a Java Minecraft Server's [VarInt](https://wiki.vg/Protocol#VarInt_and_VarLong)
  */
-suspend fun ByteReadChannel.readVarInt(): Int {
+suspend fun JavaServer.readVarInt(): Int {
     var value = 0
     var position = 0
     while (true) {
@@ -28,10 +25,9 @@ suspend fun ByteReadChannel.readVarInt(): Int {
 }
 
 /**
- * Reads the contents of a Java Minecraft Server's VarLong
- * https://wiki.vg/Protocol#VarInt_and_VarLong
+ * Reads the contents of a Java Minecraft Server's [VarLong](https://wiki.vg/Protocol#VarInt_and_VarLong)
  */
-suspend fun ByteReadChannel.readVarLong(byteArray: ByteArray): Long {
+suspend fun JavaServer.readVarLong(byteArray: ByteArray): Long {
     var value = 0L
     var position = 0
     while (true) {
@@ -50,8 +46,7 @@ suspend fun ByteReadChannel.readVarLong(byteArray: ByteArray): Long {
 }
 
 /**
- * Converts an Int to a Java Minecraft Server's VarInt
- * https://wiki.vg/Protocol#VarInt_and_VarLong
+ * Converts an Int to a Java Minecraft Server's [VarInt](https://wiki.vg/Protocol#VarInt_and_VarLong)
  */
 fun Int.toVar(): ByteArray {
     var tempValue = this
@@ -69,8 +64,7 @@ fun Int.toVar(): ByteArray {
 }
 
 /**
- * Converts a Long to a Java Minecraft Server's VarInt
- * https://wiki.vg/Protocol#VarInt_and_VarLong
+ * Converts a Long to a Java Minecraft Server's [VarLong](https://wiki.vg/Protocol#VarInt_and_VarLong)
  */
 fun Long.toVar(): ByteArray {
     var tempValue = this

@@ -35,4 +35,4 @@ jobs:
        with:
          xcode-version: latest-stable
      - name: Build and publish
-       run: ./gradlew publishAndReleaseToMavenCentral --no-configuration-cache
+       run: ./gradlew publishAndReleaseToMavenCentral

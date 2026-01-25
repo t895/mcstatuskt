@@ -1,11 +1,8 @@
-import com.vanniktech.maven.publish.SonatypeHost
-
 plugins {
     alias(libs.plugins.multiplatform)
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlinx.serialization)
-    id("org.jetbrains.kotlinx.atomicfu")
-    id("com.vanniktech.maven.publish")
+    alias(libs.plugins.maven.publish)
 }
 
 group = "com.t895.mcstatuskt"
@@ -13,8 +10,11 @@ version = "0.1.0"
 
 kotlin {
     jvmToolchain(17)
-    androidTarget {
-        publishLibraryVariants("release")
+
+    androidLibrary {
+        namespace = "com.t895.mcstatuskt"
+        compileSdk = libs.versions.androidCompileSdk.get().toInt()
+        minSdk = libs.versions.androidMinSdk.get().toInt()
     }
 
     jvm()
@@ -40,11 +40,7 @@ kotlin {
         }
     }
 
-    linuxX64 {
-        binaries.staticLib {
-            baseName = "shared"
-        }
-    }
+    linuxX64()
 
     sourceSets {
         commonMain.dependencies {
@@ -65,15 +61,6 @@ kotlin {
                 freeCompilerArgs.add("-Xexport-kdoc")
             }
         }
-    }
-}
-
-android {
-    namespace = "com.t895.mcstatuskt"
-    compileSdk = 34
-
-    defaultConfig {
-        minSdk = 21
     }
 }
 
@@ -114,8 +101,7 @@ mavenPublishing {
         }
     }
 
-    // Configure publishing to Maven Central
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
 
     // Enable GPG signing for all publications
     signAllPublications()

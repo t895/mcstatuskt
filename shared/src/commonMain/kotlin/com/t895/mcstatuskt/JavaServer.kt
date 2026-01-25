@@ -6,7 +6,6 @@ import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import io.ktor.utils.io.*
-import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.runBlocking
@@ -14,97 +13,103 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlin.coroutines.cancellation.CancellationException
 
-/**
- * Class to allow for connections to a Java Minecraft Server.
- *
- * @param address String representation of an IPv4 server address (DNS resolving is not currently supported)
- * @param port Port used to connect to the server
- * @param timeoutMs The time waited before terminating any connection to the server (e.g. Sending packets)
- */
-class JavaServer(
-    private val address: String,
-    private val port: Short = 25565,
-    private val timeoutMs: Long = 15000,
+class JavaServer private constructor(
+    private val hostname: String,
+    private val port: Short,
+    private val timeoutMs: Long,
 ) : AutoCloseable {
+    companion object {
+        private const val PROTOCOL_VERSION = 767 // MC 1.21
+
+        /**
+         * Creates a new [JavaServer] that is connected to the target [hostname] and [port].
+         *
+         * @param hostname String representation of an IPv4 server address (DNS resolving is not currently supported)
+         * @param port Port used to connect to the server
+         * @param timeoutMs The time waited before terminating any connection to the server (e.g. Sending packets)
+         */
+        @Throws(CancellationException::class)
+        suspend fun connect(
+            hostname: String,
+            port: Short = 25565,
+            timeoutMs: Long = 15_000,
+        ): JavaServer = JavaServer(hostname, port, timeoutMs).apply {
+            withTimeout(timeoutMs) {
+                socket = aSocket(selectorManager).tcp().connect(hostname, port.toInt()) {
+                    socketTimeout = timeoutMs
+
+                    // This makes sure the socket closes immediately
+                    lingerSeconds = 0
+                }
+            }
+            readChannel = socket.openReadChannel()
+            writeChannel = socket.openWriteChannel(autoFlush = false)
+            writeChannel.flush()
+        }
+    }
+
     private var selectorManager = SelectorManager(Dispatchers.IO)
     private lateinit var socket: Socket
 
     private lateinit var readChannel: ByteReadChannel
     private lateinit var writeChannel: ByteWriteChannel
 
-    private var connected by atomic(false)
-
-    /**
-     * Begins initial connection to [address]:[port].
-     * Must be run before any other methods in this class.
-     */
-    @Throws(CancellationException::class)
-    suspend fun connect() {
-        if (connected) {
-            return
-        }
-
-        withTimeout(timeoutMs) {
-            socket = aSocket(selectorManager).tcp().connect(address, port.toInt()) {
-                socketTimeout = timeoutMs
-
-                // This makes sure the socket closes immediately
-                lingerSeconds = 0
-            }
-        }
-        readChannel = socket.openReadChannel()
-        writeChannel = socket.openWriteChannel(autoFlush = false)
-        writeChannel.flush()
-        connected = true
-    }
-
     /**
      * Sends a [Packet] to this server. Typically constructed by [PacketBuilder].
      */
     suspend fun sendPacket(packet: Packet) {
-        if (!connected) {
-            error("Server is not connected!")
-        }
-
         writeChannel.writeFully(packet.data)
         writeChannel.flush()
     }
 
     /**
-     * Gives access to the underlying [ByteReadChannel] that allows you to read responses after
-     * sending each packet.
+     * Reads a byte of data from the internal response channel
      */
-    fun getReadChannel(): ByteReadChannel {
-        if (!connected) {
-            error("Server is not connected!")
-        }
+    suspend fun readByte(): Byte = readChannel.readByte()
 
-        return readChannel
-    }
+    /**
+     * Reads two bytes of data from the internal response channel
+     */
+    suspend fun readShort(): Short = readChannel.readShort()
 
-    private suspend fun ByteReadChannel.readMCString(): String {
-        val dataLength = readChannel.readVarInt()
+    /**
+     * Reads four bytes of data from the internal response channel
+     */
+    suspend fun readInt(): Int = readChannel.readInt()
+
+    /**
+     * Reads eight bytes of data from the internal response channel
+     */
+    suspend fun readLong(): Long = readChannel.readLong()
+
+    /**
+     * Reads [count] number of bytes into a [ByteArray] from the internal read channel.
+     */
+    suspend fun readBytes(count: Int): ByteArray = readChannel.readByteArray(count)
+
+    /**
+     * Assuming a [String] is intended to be read at this point in the response, this will read a VarInt representing
+     * the length of the string and then read that number of bytes into an output [String].
+     */
+    suspend fun readString(): String {
+        val dataLength = readVarInt()
         val stringData = StringBuilder()
-        for (i in 0 until dataLength) {
-            stringData.append(readChannel.readByte().toInt().toChar())
+        repeat(dataLength) {
+            stringData.append(readByte().toInt().toChar())
         }
         return stringData.toString()
     }
 
     /**
      * Conducts a handshake with this server and receives the current server status if successful
-     * and a default Status object if not.
+     * and a default [Status] object if not.
      */
     @Throws(CancellationException::class)
     suspend fun status(): Status {
-        if (!connected) {
-            error("Server is not connected!")
-        }
-
         val handshakePacket = PacketBuilder()
             .add(0.toByte())
             .add(PROTOCOL_VERSION)
-            .add(address)
+            .add(hostname)
             .add(port)
             .add(1.toByte())
             .build()
@@ -119,12 +124,12 @@ class JavaServer(
             sendPacket(requestPacket)
         }
 
-        readChannel.readVarInt() // Packet size
+        readVarInt() // Packet size
 
         val packetId = readChannel.readByte()
         check(packetId.toInt() == 0) { "Status packet ID does not equal 0!" }
 
-        val statusString = readChannel.readMCString()
+        val statusString = readString()
 
         val status = try {
             Json.decodeFromString(statusString)
@@ -137,17 +142,8 @@ class JavaServer(
     }
 
     override fun close() {
-        if (!connected) {
-            return
-        }
-
         runBlocking { writeChannel.flushAndClose() }
         socket.close()
         selectorManager.close()
-        connected = false
-    }
-
-    companion object {
-        private const val PROTOCOL_VERSION = 767 // MC 1.21
     }
 }
